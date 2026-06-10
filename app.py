@@ -15,7 +15,6 @@ CURSOR_TOKEN = os.environ["CURSOR_WEBHOOK_TOKEN"]
 PORT = int(os.environ.get("PORT", 3000))
 
 MAKE_DOC = re.compile(r"/make-doc\b", re.I)
-seen_notes: set[int] = set()
 
 
 def should_trigger(payload: dict) -> bool:
@@ -61,10 +60,18 @@ def gitlab_webhook():
     payload = request.get_json(force=True, silent=True) or {}
     if not should_trigger(payload):
         return {"status": "ignored", "reason": "no_trigger"}
+    note_id = (payload.get("object_attributes") or {}).get("id")
 
-    threading.Thread(target=forward_to_cursor, args=(payload,), daemon=True).start()
-    return {"status": "triggered", "note_id": note_id}
+    threading.Thread(
+        target=forward_to_cursor,
+        args=(payload,),
+        daemon=True
+    ).start()
 
+    return {
+        "status": "triggered",
+        "note_id": note_id
+    }
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=PORT)
